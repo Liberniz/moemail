@@ -12,6 +12,19 @@ interface SendEmailRequest {
   to: string
   subject: string
   content: string
+  replyTo?: {
+    messageId?: string
+    references?: string
+  }
+}
+
+// Threading headers come from the original sender and are stored verbatim in
+// our own DB, so strip CR/LF to rule out header injection and cap the length
+// per RFC 5322 (998 chars per line).
+function sanitizeHeaderValue(value: string): string | null {
+  const cleaned = value.replace(/[\r\n]+/g, " ").trim()
+  if (!cleaned || cleaned.length > 998) return null
+  return cleaned
 }
 
 async function sendWithResend(
@@ -19,7 +32,8 @@ async function sendWithResend(
   subject: string,
   content: string,
   fromEmail: string,
-  config: { apiKey: string }
+  config: { apiKey: string },
+  headers?: Record<string, string>
 ) {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -32,6 +46,7 @@ async function sendWithResend(
       to: [to],
       subject: subject,
       html: content,
+      ...(headers && Object.keys(headers).length > 0 ? { headers } : {}),
     }),
   })
 
@@ -70,7 +85,7 @@ export async function POST(
     
     const remainingEmails = permissionResult.remainingEmails
 
-    const { to, subject, content } = await request.json() as SendEmailRequest
+    const { to, subject, content, replyTo } = await request.json() as SendEmailRequest
 
     if (!to || !subject || !content) {
       return NextResponse.json(
@@ -107,7 +122,24 @@ export async function POST(
       )
     }
 
-    await sendWithResend(to, subject, content, email.address, { apiKey })
+    // Threading headers: In-Reply-To points at the original message, References
+    // extends the original chain. Without a stored Message-ID (e.g. mail
+    // received before this feature) we send a plain message instead.
+    const threadHeaders: Record<string, string> = {}
+    if (replyTo?.messageId) {
+      const inReplyTo = sanitizeHeaderValue(replyTo.messageId)
+      if (inReplyTo) {
+        threadHeaders['In-Reply-To'] = inReplyTo
+        const references = replyTo.references
+          ? sanitizeHeaderValue(`${replyTo.references} ${inReplyTo}`)
+          : inReplyTo
+        if (references) {
+          threadHeaders['References'] = references
+        }
+      }
+    }
+
+    await sendWithResend(to, subject, content, email.address, { apiKey }, threadHeaders)
 
     await db.insert(messages).values({
       emailId: email.id,

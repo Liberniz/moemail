@@ -74,7 +74,8 @@
     "dailyLimitReached": "已达每日发送上限",
     "dailyLimit": "每日限额：{count}/{max}",
     "dailyLimitUnit": "封/天"
-  },
+,
+    "replyTitle": "回复邮件"  },
   "messageView": {
     "loading": "加载邮件详情...",
     "loadError": "获取邮件详情失败",
@@ -85,7 +86,10 @@
     "time": "时间",
     "htmlFormat": "HTML 格式",
     "textFormat": "纯文本格式"
-  },
+,
+    "reply": "回复",
+    "subject": "主题",
+    "originalMessage": "原始邮件"  },
   "share": {
     "title": "分享邮箱",
     "description": "创建分享链接，让其他人可以查看此邮箱中的邮件",

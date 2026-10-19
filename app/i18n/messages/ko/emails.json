@@ -74,7 +74,8 @@
     "dailyLimitReached": "일일 전송 제한에 도달했습니다",
     "dailyLimit": "일일 제한: {count}/{max}",
     "dailyLimitUnit": "이메일/일"
-  },
+,
+    "replyTitle": "답장"  },
   "messageView": {
     "loading": "메시지 세부 정보 로딩 중...",
     "loadError": "메시지 세부 정보 로드 실패",
@@ -85,7 +86,10 @@
     "time": "시간",
     "htmlFormat": "HTML 형식",
     "textFormat": "일반 텍스트 형식"
-  },
+,
+    "reply": "답장",
+    "subject": "제목",
+    "originalMessage": "원본 메일"  },
   "share": {
     "title": "메일함 공유",
     "description": "다른 사람이 이 메일함의 이메일을 볼 수 있도록 공유 링크 생성",

@@ -23,12 +23,18 @@ const handleEmail = async (message: ForwardableEmailMessage, env: Env) => {
       return
     }
 
+    const referencesHeader = parsedMessage.headers?.find(
+      (h) => h.key.toLowerCase() === 'references'
+    )?.value
+
     const savedMessage = await db.insert(messages).values({
       emailId: targetEmail.id,
       fromAddress: message.from,
       subject: parsedMessage.subject || '(无主题)',
       content: parsedMessage.text || '',
       html: parsedMessage.html || '',
+      messageId: parsedMessage.messageId || null,
+      references: referencesHeader || null,
       type: 'received',
     }).returning().get()
 

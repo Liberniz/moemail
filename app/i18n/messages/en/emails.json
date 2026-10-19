@@ -74,7 +74,8 @@
     "dailyLimitReached": "Daily sending limit reached",
     "dailyLimit": "Daily Limit: {count}/{max}",
     "dailyLimitUnit": "emails/day"
-  },
+,
+    "replyTitle": "Reply"  },
   "messageView": {
     "loading": "Loading message details...",
     "loadError": "Failed to load message details",
@@ -85,7 +86,10 @@
     "time": "Time",
     "htmlFormat": "HTML Format",
     "textFormat": "Plain Text Format"
-  },
+,
+    "reply": "Reply",
+    "subject": "Subject",
+    "originalMessage": "Original Message"  },
   "share": {
     "title": "Share Mailbox",
     "description": "Create a share link to let others view emails in this mailbox",
