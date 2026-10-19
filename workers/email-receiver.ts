@@ -27,9 +27,16 @@ const handleEmail = async (message: ForwardableEmailMessage, env: Env) => {
       (h) => h.key.toLowerCase() === 'references'
     )?.value
 
+    // Use the RFC 5322 From header, not the envelope sender (message.from).
+    // Envelope senders are VERP bounce addresses (e.g. Resend's
+    // xxx@rsend.<domain>), which is what the UI used to show and what
+    // replies were addressed to. Fall back to the envelope sender if
+    // the message has no parseable From header.
+    const fromAddress = parsedMessage.from?.address || message.from
+
     const savedMessage = await db.insert(messages).values({
       emailId: targetEmail.id,
-      fromAddress: message.from,
+      fromAddress,
       subject: parsedMessage.subject || '(无主题)',
       content: parsedMessage.text || '',
       html: parsedMessage.html || '',
