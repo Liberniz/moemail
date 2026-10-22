@@ -49,6 +49,7 @@
   "messages": {
     "received": "收件箱",
     "sent": "已发送",
+    "threads": "会话",
     "noMessages": "暂无邮件",
     "messageCount": "封邮件",
     "from": "发件人",

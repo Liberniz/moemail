@@ -49,6 +49,7 @@
   "messages": {
     "received": "Received",
     "sent": "Sent",
+    "threads": "Threads",
     "noMessages": "No messages yet",
     "messageCount": "messages",
     "from": "From",

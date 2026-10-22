@@ -55,13 +55,14 @@ export async function GET(
   const { searchParams } = new URL(request.url)
   const cursorStr = searchParams.get('cursor')
   const messageType = searchParams.get('type')
+  const isThread = messageType === 'thread'
 
   try {
     const db = createDb()
     const { id } = await params
 
     const userId = await getUserId()
-    if (messageType === 'sent') {
+    if (messageType === 'sent' || isThread) {
       const permissionResult = await checkBasicSendPermission(userId!)
       if (!permissionResult.canSend) {
         return NextResponse.json(
@@ -85,15 +86,17 @@ export async function GET(
       )
     }
 
-    const baseConditions = and(
-      eq(messages.emailId, id),
-      messageType === 'sent' 
-        ? eq(messages.type, "sent") 
-        : or(
-            ne(messages.type, "sent"),
-            isNull(messages.type)
-          )
-    )
+    const baseConditions = isThread
+      ? eq(messages.emailId, id)
+      : and(
+          eq(messages.emailId, id),
+          messageType === 'sent'
+            ? eq(messages.type, "sent")
+            : or(
+                ne(messages.type, "sent"),
+                isNull(messages.type)
+              )
+        )
 
     const totalResult = await db.select({ count: sql<number>`count(*)` })
       .from(messages)
@@ -102,38 +105,57 @@ export async function GET(
 
     const conditions = [baseConditions]
 
+    // Thread mode merges received + sent, so it orders by whichever
+    // timestamp a message has (stored as integer ms in D1).
+    const threadTime = sql<number>`coalesce(${messages.receivedAt}, ${messages.sentAt})`
+
     if (cursorStr) {
       const { timestamp, id } = decodeCursor(cursorStr)
-      const orderByTime = messageType === 'sent' ? messages.sentAt : messages.receivedAt
-      conditions.push(
-        or(
-          lt(orderByTime, new Date(timestamp)),
-          and(
-            eq(orderByTime, new Date(timestamp)),
-            lt(messages.id, id)
+      if (isThread) {
+        conditions.push(
+          or(
+            lt(threadTime, timestamp),
+            and(
+              eq(threadTime, timestamp),
+              lt(messages.id, id)
+            )
           )
         )
-      )
+      } else {
+        const orderByTime = messageType === 'sent' ? messages.sentAt : messages.receivedAt
+        conditions.push(
+          or(
+            lt(orderByTime, new Date(timestamp)),
+            and(
+              eq(orderByTime, new Date(timestamp)),
+              lt(messages.id, id)
+            )
+          )
+        )
+      }
     }
 
     const orderByTime = messageType === 'sent' ? messages.sentAt : messages.receivedAt
-    
+
     const results = await db.query.messages.findMany({
       where: and(...conditions),
       orderBy: (messages, { desc }) => [
-        desc(orderByTime),
+        desc(isThread ? threadTime : orderByTime),
         desc(messages.id)
       ],
       limit: PAGE_SIZE + 1
     })
-    
+
     const hasMore = results.length > PAGE_SIZE
-    const nextCursor = hasMore 
+    const lastOnPage = results[PAGE_SIZE - 1]
+    const nextCursor = hasMore
       ? encodeCursor(
-          messageType === 'sent' 
-            ? results[PAGE_SIZE - 1].sentAt!.getTime()
-            : results[PAGE_SIZE - 1].receivedAt.getTime(),
-          results[PAGE_SIZE - 1].id
+          isThread
+            ? (lastOnPage.receivedAt ?? lastOnPage.sentAt)!.getTime()
+            : messageType === 'sent'
+              ? lastOnPage.sentAt!.getTime()
+              : lastOnPage.receivedAt.getTime(),
+          lastOnPage.id
         )
       : null
     const messageList = hasMore ? results.slice(0, PAGE_SIZE) : results
@@ -147,7 +169,10 @@ export async function GET(
         content: msg.content,
         html: msg.html,
         sent_at: msg.sentAt?.getTime(),
-        received_at: msg.receivedAt?.getTime()
+        received_at: msg.receivedAt?.getTime(),
+        type: msg.type ?? "received",
+        message_id: msg.messageId ?? null,
+        references: msg.references ?? null
       })),
       nextCursor,
       total: totalCount

@@ -27,6 +27,19 @@ function sanitizeHeaderValue(value: string): string | null {
   return cleaned
 }
 
+// The compose UI is a plain-text textarea, but the body used to be passed to
+// Resend as HTML verbatim, so every newline collapsed into a space when the
+// mail was rendered (replies arrived as one run-on paragraph). Convert plain
+// text to HTML with <br> line breaks and also send a text/plain part; bodies
+// that already look like HTML are sent as-is.
+function plainTextToHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\r\n|\r|\n/g, "<br>")
+}
+
 async function sendWithResend(
   to: string,
   subject: string,
@@ -35,6 +48,8 @@ async function sendWithResend(
   config: { apiKey: string },
   headers?: Record<string, string>
 ) {
+  const looksLikeHtml = /<\/?[a-z][^>]*>/i.test(content)
+  const html = looksLikeHtml ? content : plainTextToHtml(content)
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -45,7 +60,8 @@ async function sendWithResend(
       from: fromEmail,
       to: [to],
       subject: subject,
-      html: content,
+      html,
+      ...(looksLikeHtml ? {} : { text: content }),
       ...(headers && Object.keys(headers).length > 0 ? { headers } : {}),
     }),
   })
@@ -56,7 +72,7 @@ async function sendWithResend(
     throw new Error(errorData.message || "Resend发送失败，请稍后重试")
   }
 
-  return { success: true }
+  return { success: true, html }
 }
 
 export async function POST(
@@ -139,16 +155,20 @@ export async function POST(
       }
     }
 
-    await sendWithResend(to, subject, content, email.address, { apiKey }, threadHeaders)
+    const { html: sentHtml } = await sendWithResend(to, subject, content, email.address, { apiKey }, threadHeaders)
 
     await db.insert(messages).values({
       emailId: email.id,
       fromAddress: email.address,
       toAddress: to,
       subject,
-      content: '',
+      content,
       type: "sent",
-      html: content
+      html: sentHtml,
+      // Persist the thread chain so the conversation view can group this
+      // sent reply with the received messages it belongs to. The outgoing
+      // Message-ID is assigned by the sending service and unknown here.
+      references: threadHeaders['References'] ?? null
     })
 
     return NextResponse.json({ 

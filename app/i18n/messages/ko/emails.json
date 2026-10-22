@@ -49,6 +49,7 @@
   "messages": {
     "received": "받은 편지함",
     "sent": "보낸 편지함",
+    "threads": "스레드",
     "noMessages": "아직 메시지가 없습니다",
     "messageCount": "메시지",
     "from": "보낸 사람",
