@@ -49,6 +49,7 @@
   "messages": {
     "received": "受信箱",
     "sent": "送信済み",
+    "threads": "スレッド",
     "noMessages": "メールはまだありません",
     "messageCount": "件のメール",
     "from": "差出人",
@@ -74,7 +75,8 @@
     "dailyLimitReached": "1日の送信上限に達しました",
     "dailyLimit": "1日の上限: {count}/{max}",
     "dailyLimitUnit": "通/日"
-  },
+,
+    "replyTitle": "返信"  },
   "messageView": {
     "loading": "メール詳細を読み込み中...",
     "loadError": "メール詳細の取得に失敗しました",
@@ -85,7 +87,10 @@
     "time": "時間",
     "htmlFormat": "HTML 表示",
     "textFormat": "テキスト表示"
-  },
+,
+    "reply": "返信",
+    "subject": "件名",
+    "originalMessage": "元のメール"  },
   "share": {
     "title": "メールボックスを共有",
     "description": "共有リンクを作成して、このメールボックス内のメールを他の人に見せましょう",

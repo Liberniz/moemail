@@ -63,6 +63,8 @@ export const messages = sqliteTable("message", {
   subject: text("subject").notNull(),
   content: text("content").notNull(),
   html: text("html"),
+  messageId: text("message_id"),
+  references: text("references"),
   type: text("type"),
   receivedAt: integer("received_at", { mode: "timestamp_ms" })
     .notNull()
