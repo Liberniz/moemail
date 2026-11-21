@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,22 +15,65 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
+export interface ReplyToInfo {
+  messageId?: string | null
+  references?: string | null
+}
+
 interface SendDialogProps {
   emailId: string
   fromAddress: string
   onSendSuccess?: () => void
+  // Prefilled values for replying (absent = blank compose)
+  initialTo?: string
+  initialSubject?: string
+  initialContent?: string
+  replyTo?: ReplyToInfo
+  // Controlled open state; when omitted the dialog manages itself
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  // Hide the built-in compose trigger (caller opens the dialog itself,
+  // e.g. the Reply button in the message view)
+  hideTrigger?: boolean
 }
 
-export function SendDialog({ emailId, fromAddress, onSendSuccess }: SendDialogProps) {
+export function SendDialog({
+  emailId,
+  fromAddress,
+  onSendSuccess,
+  initialTo,
+  initialSubject,
+  initialContent,
+  replyTo,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
+}: SendDialogProps) {
   const t = useTranslations("emails.send")
   const tList = useTranslations("emails.list")
   const tCommon = useTranslations("common.actions")
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = (value: boolean) => {
+    if (!isControlled) setInternalOpen(value)
+    onOpenChange?.(value)
+  }
   const [loading, setLoading] = useState(false)
   const [to, setTo] = useState("")
   const [subject, setSubject] = useState("")
   const [content, setContent] = useState("")
   const { toast } = useToast()
+
+  // When opened for a reply, prefill recipient/subject/quoted body.
+  // Compose mode (no initials) keeps the previous behavior.
+  useEffect(() => {
+    if (open && (initialTo !== undefined || initialSubject !== undefined || initialContent !== undefined)) {
+      setTo(initialTo ?? "")
+      setSubject(initialSubject ?? "")
+      setContent(initialContent ?? "")
+    }
+  }, [open, initialTo, initialSubject, initialContent])
 
   const handleSend = async () => {
     if (!to.trim() || !subject.trim() || !content.trim()) {
@@ -47,7 +90,14 @@ export function SendDialog({ emailId, fromAddress, onSendSuccess }: SendDialogPr
       const response = await fetch(`/api/emails/${emailId}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, subject, content })
+        body: JSON.stringify({
+        to,
+        subject,
+        content,
+        ...(replyTo?.messageId
+          ? { replyTo: { messageId: replyTo.messageId, references: replyTo.references ?? undefined } }
+          : {}),
+      })
       })
 
       if (!response.ok) {
@@ -84,6 +134,7 @@ export function SendDialog({ emailId, fromAddress, onSendSuccess }: SendDialogPr
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
+      {!hideTrigger && (
       <TooltipProvider>
         <Tooltip>
           <DialogTrigger asChild>
@@ -103,9 +154,10 @@ export function SendDialog({ emailId, fromAddress, onSendSuccess }: SendDialogPr
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
+      )}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogTitle>{replyTo?.messageId ? t("replyTitle") : t("title")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="text-sm text-muted-foreground">

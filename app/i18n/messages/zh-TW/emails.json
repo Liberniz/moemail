@@ -49,6 +49,7 @@
   "messages": {
     "received": "收件匣",
     "sent": "已發送",
+    "threads": "會話",
     "noMessages": "暫無郵件",
     "messageCount": "封郵件",
     "from": "寄件者",
@@ -74,7 +75,8 @@
     "dailyLimitReached": "已達每日發送上限",
     "dailyLimit": "每日限額：{count}/{max}",
     "dailyLimitUnit": "封/天"
-  },
+,
+    "replyTitle": "回覆郵件"  },
   "messageView": {
     "loading": "載入郵件詳情...",
     "loadError": "取得郵件詳情失敗",
@@ -85,7 +87,10 @@
     "time": "時間",
     "htmlFormat": "HTML 格式",
     "textFormat": "純文字格式"
-  },
+,
+    "reply": "回覆",
+    "subject": "主旨",
+    "originalMessage": "原始郵件"  },
   "share": {
     "title": "分享郵箱",
     "description": "建立分享連結，讓其他人可以查看此郵箱中的郵件",

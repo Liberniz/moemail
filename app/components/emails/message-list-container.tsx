@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useTranslations } from "next-intl"
-import { Send, Inbox } from "lucide-react"
+import { Send, Inbox, MessagesSquare } from "lucide-react"
 import { Tabs, SlidingTabsList, SlidingTabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { MessageList } from "./message-list"
 import { useSendPermission } from "@/hooks/use-send-permission"
@@ -19,11 +19,11 @@ interface MessageListContainerProps {
 
 export function MessageListContainer({ email, onMessageSelect, selectedMessageId, refreshTrigger }: MessageListContainerProps) {
   const t = useTranslations("emails.messages")
-  const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received')
+  const [activeTab, setActiveTab] = useState<'received' | 'sent' | 'thread'>('received')
   const { canSend: canSendEmails } = useSendPermission()
 
   const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId as 'received' | 'sent')
+    setActiveTab(tabId as 'received' | 'sent' | 'thread')
     onMessageSelect(null)
   }
 
@@ -36,6 +36,10 @@ export function MessageListContainer({ email, onMessageSelect, selectedMessageId
               <SlidingTabsTrigger value="received">
                 <Inbox className="h-4 w-4" />
                 {t("received")}
+              </SlidingTabsTrigger>
+              <SlidingTabsTrigger value="thread">
+                <MessagesSquare className="h-4 w-4" />
+                {t("threads")}
               </SlidingTabsTrigger>
               <SlidingTabsTrigger value="sent">
                 <Send className="h-4 w-4" />
@@ -53,6 +57,16 @@ export function MessageListContainer({ email, onMessageSelect, selectedMessageId
             />
           </TabsContent>
           
+          <TabsContent value="thread" className="flex-1 overflow-hidden m-0">
+            <MessageList
+              email={email}
+              messageType="thread"
+              onMessageSelect={onMessageSelect}
+              selectedMessageId={selectedMessageId}
+              refreshTrigger={refreshTrigger}
+            />
+          </TabsContent>
+
           <TabsContent value="sent" className="flex-1 overflow-hidden m-0">
             <MessageList
               email={email}

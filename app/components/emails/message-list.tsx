@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useTranslations } from "next-intl"
-import {Mail, Calendar, RefreshCw, Trash2, Share2} from "lucide-react"
+import {Mail, Calendar, RefreshCw, Trash2, Share2, ChevronDown, ChevronRight, ArrowDownLeft, ArrowUpRight} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useThrottle } from "@/hooks/use-throttle"
@@ -29,6 +29,9 @@ interface Message {
   sent_at?: number
   content?: string
   html?: string
+  type?: string
+  message_id?: string | null
+  references?: string | null
 }
 
 interface MessageListProps {
@@ -36,10 +39,60 @@ interface MessageListProps {
     id: string
     address: string
   }
-  messageType: 'received' | 'sent'
+  messageType: 'received' | 'sent' | 'thread'
   onMessageSelect: (messageId: string | null, messageType?: 'received' | 'sent') => void
   selectedMessageId?: string | null
   refreshTrigger?: number
+}
+
+interface ThreadGroup {
+  key: string
+  subject: string
+  latest: Message
+  members: Message[]
+  latestTime: number
+}
+
+const messageTime = (m: Message) => m.received_at || m.sent_at || 0
+const isSentMessage = (m: Message) => m.type === 'sent'
+
+function normalizeSubject(subject: string): string {
+  return (subject || "").replace(/^(\s*(re|fwd|fw|回复|转发|轉發)\s*[:：]\s*)+/i, "").trim()
+}
+
+// Grouping key: the first id of the References chain is the thread root and
+// is shared by every message in the thread. A thread starter has no
+// References, so its own Message-ID is the root. Messages stored before
+// threading support have neither and fall back to subject + counterpart.
+function threadKeyOf(m: Message): string {
+  const refs = m.references?.split(/\s+/).filter(Boolean)
+  if (refs && refs.length > 0) return `t:${refs[0]}`
+  if (m.message_id) return `t:${m.message_id}`
+  const counterpart = isSentMessage(m) ? m.to_address : m.from_address
+  return `s:${normalizeSubject(m.subject).toLowerCase()}|${counterpart || ""}`
+}
+
+function groupThreads(list: Message[]): ThreadGroup[] {
+  const map = new Map<string, Message[]>()
+  for (const m of list) {
+    const key = threadKeyOf(m)
+    const arr = map.get(key)
+    if (arr) arr.push(m)
+    else map.set(key, [m])
+  }
+  const groups: ThreadGroup[] = []
+  for (const [key, members] of map) {
+    const sorted = [...members].sort((a, b) => messageTime(a) - messageTime(b))
+    const latest = sorted[sorted.length - 1]
+    groups.push({
+      key,
+      subject: normalizeSubject(latest.subject) || latest.subject,
+      latest,
+      members: sorted,
+      latestTime: messageTime(latest),
+    })
+  }
+  return groups.sort((a, b) => b.latestTime - a.latestTime)
 }
 
 interface MessageResponse {
@@ -61,7 +114,22 @@ export function MessageList({ email, messageType, onMessageSelect, selectedMessa
   const messagesRef = useRef<Message[]>([]) // 添加 ref 来追踪最新的消息列表
   const [total, setTotal] = useState(0)
   const [messageToDelete, setMessageToDelete] = useState<Message | null>(null)
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
   const { toast } = useToast()
+
+  const threads = useMemo(
+    () => (messageType === 'thread' ? groupThreads(messages) : []),
+    [messages, messageType]
+  )
+
+  const toggleThread = (key: string) => {
+    setExpandedThreads(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   // 当 messages 改变时更新 ref
   useEffect(() => {
@@ -71,8 +139,8 @@ export function MessageList({ email, messageType, onMessageSelect, selectedMessa
   const fetchMessages = async (cursor?: string) => {
     try {
       const url = new URL(`/api/emails/${email.id}`, window.location.origin)
-      if (messageType === 'sent') {
-        url.searchParams.set('type', 'sent')
+      if (messageType !== 'received') {
+        url.searchParams.set('type', messageType)
       }
       if (cursor) {
         url.searchParams.set('cursor', cursor)
@@ -147,7 +215,8 @@ export function MessageList({ email, messageType, onMessageSelect, selectedMessa
 
   const handleDelete = async (message: Message) => {
     try {
-      const response = await fetch(`/api/emails/${email.id}/${message.id}${messageType === 'sent' ? '?type=sent' : ''}`, {
+      const isSent = messageType === 'thread' ? isSentMessage(message) : messageType === 'sent'
+      const response = await fetch(`/api/emails/${email.id}/${message.id}${isSent ? '?type=sent' : ''}`, {
         method: "DELETE"
       })
 
@@ -189,6 +258,7 @@ export function MessageList({ email, messageType, onMessageSelect, selectedMessa
     }
     setLoading(true)
     setNextCursor(null)
+    setExpandedThreads(new Set())
     fetchMessages()
     startPolling() 
 
@@ -228,6 +298,107 @@ export function MessageList({ email, messageType, onMessageSelect, selectedMessa
         {loading ? (
           <div className="p-4 text-center text-sm text-gray-500">{t("loading")}</div>
         ) : messages.length > 0 ? (
+          messageType === 'thread' ? (
+            <div className="divide-y divide-primary/10">
+              {threads.map(group => {
+                const expanded = expandedThreads.has(group.key) || group.members.some(m => m.id === selectedMessageId)
+                const single = group.members.length === 1
+                return (
+                  <div key={group.key}>
+                    <div
+                      onClick={() => single
+                        ? onMessageSelect(group.latest.id, isSentMessage(group.latest) ? 'sent' : 'received')
+                        : toggleThread(group.key)}
+                      className={cn(
+                        "p-3 hover:bg-primary/5 cursor-pointer",
+                        group.members.some(m => m.id === selectedMessageId) && "bg-primary/10"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Mail className="w-4 h-4 text-primary/60 mt-1" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm truncate">{group.subject}</p>
+                            {!single && (
+                              <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">
+                                {group.members.length}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                            <span className="truncate">
+                              {isSentMessage(group.latest) ? group.latest.to_address : group.latest.from_address}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(group.latestTime).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                        {!single && (
+                          expanded
+                            ? <ChevronDown className="h-4 w-4 text-gray-400 mt-1 shrink-0" />
+                            : <ChevronRight className="h-4 w-4 text-gray-400 mt-1 shrink-0" />
+                        )}
+                      </div>
+                    </div>
+                    {!single && expanded && (
+                      <div className="border-t border-primary/5">
+                        {group.members.map(member => (
+                          <div
+                            key={member.id}
+                            onClick={() => onMessageSelect(member.id, isSentMessage(member) ? 'sent' : 'received')}
+                            className={cn(
+                              "pl-10 pr-3 py-2 hover:bg-primary/5 cursor-pointer group flex items-center gap-2",
+                              selectedMessageId === member.id && "bg-primary/10"
+                            )}
+                          >
+                            {isSentMessage(member)
+                              ? <ArrowUpRight className="w-3.5 h-3.5 text-primary/60 shrink-0" />
+                              : <ArrowDownLeft className="w-3.5 h-3.5 text-primary/60 shrink-0" />}
+                            <span className="text-xs truncate flex-1">
+                              {isSentMessage(member) ? member.to_address : member.from_address}
+                            </span>
+                            <span className="text-[11px] text-gray-500 shrink-0">
+                              {new Date(messageTime(member)).toLocaleString()}
+                            </span>
+                            <div className="opacity-0 group-hover:opacity-100 flex gap-1" onClick={(e) => e.stopPropagation()}>
+                              <ShareMessageDialog
+                                emailId={email.id}
+                                messageId={member.id}
+                                messageSubject={member.subject}
+                                trigger={
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <Share2 className="h-4 w-4" />
+                                  </Button>
+                                }
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setMessageToDelete(member)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {loadingMore && (
+                <div className="text-center text-sm text-gray-500 py-2">
+                  {t("loadingMore")}
+                </div>
+              )}
+            </div>
+          ) : (
           <div className="divide-y divide-primary/10">
             {messages.map(message => (
               <div
@@ -288,6 +459,7 @@ export function MessageList({ email, messageType, onMessageSelect, selectedMessa
               </div>
             )}
           </div>
+          )
         ) : (
           <div className="p-4 text-center text-sm text-gray-500">
             {t("noMessages")}

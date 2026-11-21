@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useTranslations } from "next-intl"
-import { Loader2, Share2 } from "lucide-react"
+import { Loader2, Reply, Share2 } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { useTheme } from "next-themes"
 import { useToast } from "@/components/ui/use-toast"
 import { ShareMessageDialog } from "./share-message-dialog"
+import { SendDialog } from "./send-dialog"
 
 interface Message {
   id: string
@@ -16,6 +17,8 @@ interface Message {
   subject: string
   content: string
   html?: string
+  message_id?: string | null
+  references?: string | null
   received_at?: number
   sent_at?: number
 }
@@ -25,17 +28,20 @@ interface MessageViewProps {
   messageId: string
   messageType?: 'received' | 'sent'
   onClose: () => void
+  canSend?: boolean
+  onSendSuccess?: () => void
 }
 
 type ViewMode = "html" | "text"
 
-export function MessageView({ emailId, messageId, messageType = 'received' }: MessageViewProps) {
+export function MessageView({ emailId, messageId, messageType = 'received', canSend = true, onSendSuccess }: MessageViewProps) {
   const t = useTranslations("emails.messageView")
   const tList = useTranslations("emails.list")
   const [message, setMessage] = useState<Message | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>("html")
+  const [replyOpen, setReplyOpen] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const { theme } = useTheme()
   const { toast } = useToast()
@@ -182,6 +188,23 @@ export function MessageView({ emailId, messageId, messageType = 'received' }: Me
     updateIframeContent()
   }, [message?.html, viewMode, theme])
 
+  const buildReplyContent = () => {
+    if (!message) return ""
+    const date = new Date(message.sent_at || message.received_at || 0).toLocaleString()
+    const header = `\n\n----- ${t("originalMessage")} -----\n${t("from")}: ${message.from_address || ""}\n${t("time")}: ${date}\n${t("subject")}: ${message.subject}\n\n`
+    const quoted = (message.content || "")
+      .split("\n")
+      .map((line) => `> ${line}`)
+      .join("\n")
+    return `${header}${quoted}`
+  }
+
+  const replySubject = message
+    ? message.subject.match(/^re:\s*/i)
+      ? message.subject
+      : `Re: ${message.subject}`
+    : ""
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-32">
@@ -212,16 +235,27 @@ export function MessageView({ emailId, messageId, messageType = 'received' }: Me
       <div className="p-4 space-y-3 border-b border-primary/20">
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-base font-bold flex-1">{message.subject}</h3>
-          <ShareMessageDialog 
-            emailId={emailId}
-            messageId={message.id} 
-            messageSubject={message.subject}
-            trigger={
-              <button className="p-1.5 hover:bg-primary/10 rounded-md transition-colors">
-                <Share2 className="h-4 w-4 text-gray-500" />
+          <div className="flex items-center gap-1 shrink-0">
+            {canSend && messageType === 'received' && message.from_address && (
+              <button
+                title={t("reply")}
+                onClick={() => setReplyOpen(true)}
+                className="p-1.5 hover:bg-primary/10 rounded-md transition-colors"
+              >
+                <Reply className="h-4 w-4 text-gray-500" />
               </button>
-            }
-          />
+            )}
+            <ShareMessageDialog
+              emailId={emailId}
+              messageId={message.id}
+              messageSubject={message.subject}
+              trigger={
+                <button className="p-1.5 hover:bg-primary/10 rounded-md transition-colors">
+                  <Share2 className="h-4 w-4 text-gray-500" />
+                </button>
+              }
+            />
+          </div>
         </div>
         <div className="text-xs text-gray-500 space-y-1">
           {message.from_address && (
@@ -276,6 +310,18 @@ export function MessageView({ emailId, messageId, messageType = 'received' }: Me
           </div>
         )}
       </div>
+      <SendDialog
+        emailId={emailId}
+        fromAddress={message.to_address || ""}
+        initialTo={message.from_address || ""}
+        initialSubject={replySubject}
+        initialContent={buildReplyContent()}
+        replyTo={{ messageId: message.message_id ?? null, references: message.references ?? null }}
+        open={replyOpen}
+        onOpenChange={setReplyOpen}
+        hideTrigger
+        onSendSuccess={onSendSuccess}
+      />
     </div>
   )
 } 

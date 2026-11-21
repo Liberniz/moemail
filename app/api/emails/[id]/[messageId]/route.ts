@@ -97,6 +97,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         subject: message.subject,
         content: message.content,
         html: message.html,
+        message_id: message.messageId ?? null,
+        references: message.references ?? null,
         received_at: message.receivedAt.getTime(),
         sent_at: message.receivedAt.getTime(),
         type: message.type as 'received' | 'sent'
