@@ -59,6 +59,12 @@
     "loading": "載入中...",
     "loadingMore": "載入更多..."
   },
+  "search": {
+    "title": "全局搜尋",
+    "placeholder": "搜尋全部信箱的郵件…",
+    "resultCount": "條結果",
+    "noResults": "沒有找到符合的郵件"
+  },
   "send": {
     "title": "發送郵件",
     "from": "寄件者",
@@ -74,9 +80,9 @@
     "failed": "發送郵件失敗",
     "dailyLimitReached": "已達每日發送上限",
     "dailyLimit": "每日限額：{count}/{max}",
-    "dailyLimitUnit": "封/天"
-,
-    "replyTitle": "回覆郵件"  },
+    "dailyLimitUnit": "封/天",
+    "replyTitle": "回覆郵件"
+  },
   "messageView": {
     "loading": "載入郵件詳情...",
     "loadError": "取得郵件詳情失敗",
@@ -86,11 +92,11 @@
     "to": "收件者",
     "time": "時間",
     "htmlFormat": "HTML 格式",
-    "textFormat": "純文字格式"
-,
+    "textFormat": "純文字格式",
     "reply": "回覆",
     "subject": "主旨",
-    "originalMessage": "原始郵件"  },
+    "originalMessage": "原始郵件"
+  },
   "share": {
     "title": "分享郵箱",
     "description": "建立分享連結，讓其他人可以查看此郵箱中的郵件",

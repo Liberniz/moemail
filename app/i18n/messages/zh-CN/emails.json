@@ -59,6 +59,12 @@
     "loading": "加载中...",
     "loadingMore": "加载更多..."
   },
+  "search": {
+    "title": "全局搜索",
+    "placeholder": "搜索全部邮箱的邮件…",
+    "resultCount": "条结果",
+    "noResults": "没有找到匹配的邮件"
+  },
   "send": {
     "title": "发送邮件",
     "from": "发件人",
@@ -74,9 +80,9 @@
     "failed": "发送邮件失败",
     "dailyLimitReached": "已达每日发送上限",
     "dailyLimit": "每日限额：{count}/{max}",
-    "dailyLimitUnit": "封/天"
-,
-    "replyTitle": "回复邮件"  },
+    "dailyLimitUnit": "封/天",
+    "replyTitle": "回复邮件"
+  },
   "messageView": {
     "loading": "加载邮件详情...",
     "loadError": "获取邮件详情失败",
@@ -86,11 +92,11 @@
     "to": "收件人",
     "time": "时间",
     "htmlFormat": "HTML 格式",
-    "textFormat": "纯文本格式"
-,
+    "textFormat": "纯文本格式",
     "reply": "回复",
     "subject": "主题",
-    "originalMessage": "原始邮件"  },
+    "originalMessage": "原始邮件"
+  },
   "share": {
     "title": "分享邮箱",
     "description": "创建分享链接，让其他人可以查看此邮箱中的邮件",

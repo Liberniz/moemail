@@ -6,10 +6,12 @@ import { EmailList } from "./email-list"
 import { MessageListContainer } from "./message-list-container"
 import { MessageView } from "./message-view"
 import { SendDialog } from "./send-dialog"
+import { GlobalSearch } from "./global-search"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { useCopy } from "@/hooks/use-copy"
 import { useSendPermission } from "@/hooks/use-send-permission"
-import { Copy } from "lucide-react"
+import { Copy, Search, X } from "lucide-react"
 
 interface Email {
   id: string
@@ -18,12 +20,37 @@ interface Email {
 
 export function ThreeColumnLayout() {
   const t = useTranslations("emails.layout")
+  const tSearch = useTranslations("emails.search")
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null)
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [selectedMessageType, setSelectedMessageType] = useState<'received' | 'sent'>('received')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [searchQuery, setSearchQuery] = useState("")
   const { copyToClipboard } = useCopy()
   const { canSend: canSendEmails } = useSendPermission()
+
+  const searching = searchQuery.trim().length > 0
+
+  const searchBox = (
+    <div className="relative">
+      <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+      <Input
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder={tSearch("placeholder")}
+        className="pl-8 pr-8 h-9"
+      />
+      {searchQuery && (
+        <button
+          onClick={() => setSearchQuery("")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          aria-label="clear search"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  )
 
   const columnClass = "border-2 border-primary/20 bg-background rounded-lg overflow-hidden flex flex-col"
   const headerClass = "p-2 border-b-2 border-primary/20 flex items-center justify-between shrink-0"
@@ -32,6 +59,7 @@ export function ThreeColumnLayout() {
   // 移动端视图逻辑
   const getMobileView = () => {
     if (selectedMessageId) return "message"
+    if (searching) return "search"
     if (selectedEmail) return "emails"
     return "list"
   }
@@ -43,6 +71,15 @@ export function ThreeColumnLayout() {
   }
 
   const handleMessageSelect = (messageId: string | null, messageType: 'received' | 'sent' = 'received') => {
+    setSelectedMessageId(messageId)
+    setSelectedMessageType(messageType)
+  }
+
+  // A global-search hit lives in some mailbox: select that mailbox and the
+  // message so the detail column opens it, and keep the results visible so
+  // the user can jump between hits.
+  const handleSearchResultSelect = (email: Email, messageId: string, messageType: 'received' | 'sent') => {
+    setSelectedEmail(email)
     setSelectedMessageId(messageId)
     setSelectedMessageType(messageType)
   }
@@ -59,9 +96,13 @@ export function ThreeColumnLayout() {
           <div className={headerClass}>
             <h2 className={titleClass}>{t("myEmails")}</h2>
           </div>
+          <div className="p-2 border-b-2 border-primary/20 shrink-0">
+            {searchBox}
+          </div>
           <div className="flex-1 overflow-auto">
             <EmailList
               onEmailSelect={(email) => {
+                setSearchQuery("")
                 setSelectedEmail(email)
                 setSelectedMessageId(null)
               }}
@@ -73,7 +114,9 @@ export function ThreeColumnLayout() {
         <div className={cn("col-span-4", columnClass)}>
           <div className={headerClass}>
             <h2 className={titleClass}>
-              {selectedEmail ? (
+              {searching ? (
+                tSearch("title")
+              ) : selectedEmail ? (
                 <div className="w-full flex justify-between items-center gap-2">
                   <div className="flex items-center gap-2">
                     <span className="truncate min-w-0">{selectedEmail.address}</span>
@@ -94,7 +137,15 @@ export function ThreeColumnLayout() {
               )}
             </h2>
           </div>
-          {selectedEmail && (
+          {searching ? (
+            <div className="flex-1 overflow-auto">
+              <GlobalSearch
+                query={searchQuery}
+                onResultSelect={handleSearchResultSelect}
+                selectedMessageId={selectedMessageId}
+              />
+            </div>
+          ) : selectedEmail && (
             <div className="flex-1 overflow-auto">
               <MessageListContainer
                 email={selectedEmail}
@@ -135,6 +186,9 @@ export function ThreeColumnLayout() {
               <div className={headerClass}>
                 <h2 className={titleClass}>{t("myEmails")}</h2>
               </div>
+              <div className="p-2 border-b-2 border-primary/20 shrink-0">
+                {searchBox}
+              </div>
               <div className="flex-1 overflow-auto">
                 <EmailList
                   onEmailSelect={(email) => {
@@ -144,6 +198,29 @@ export function ThreeColumnLayout() {
                 />
               </div>
             </>
+          )}
+
+          {mobileView === "search" && (
+            <div className="h-full flex flex-col">
+              <div className={cn(headerClass, "gap-2")}>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-sm text-primary shrink-0"
+                >
+                  {t("backToEmailList")}
+                </button>
+                <div className="flex-1 min-w-0">
+                  {searchBox}
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto">
+                <GlobalSearch
+                  query={searchQuery}
+                  onResultSelect={handleSearchResultSelect}
+                  selectedMessageId={selectedMessageId}
+                />
+              </div>
+            </div>
           )}
 
           {mobileView === "emails" && selectedEmail && (
