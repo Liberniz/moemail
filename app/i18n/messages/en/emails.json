@@ -59,6 +59,12 @@
     "loading": "Loading...",
     "loadingMore": "Loading more..."
   },
+  "search": {
+    "title": "Global Search",
+    "placeholder": "Search all mailboxes…",
+    "resultCount": "results",
+    "noResults": "No matching messages"
+  },
   "send": {
     "title": "Send Email",
     "from": "From",
@@ -74,9 +80,9 @@
     "failed": "Failed to send email",
     "dailyLimitReached": "Daily sending limit reached",
     "dailyLimit": "Daily Limit: {count}/{max}",
-    "dailyLimitUnit": "emails/day"
-,
-    "replyTitle": "Reply"  },
+    "dailyLimitUnit": "emails/day",
+    "replyTitle": "Reply"
+  },
   "messageView": {
     "loading": "Loading message details...",
     "loadError": "Failed to load message details",
@@ -86,11 +92,11 @@
     "to": "To",
     "time": "Time",
     "htmlFormat": "HTML Format",
-    "textFormat": "Plain Text Format"
-,
+    "textFormat": "Plain Text Format",
     "reply": "Reply",
     "subject": "Subject",
-    "originalMessage": "Original Message"  },
+    "originalMessage": "Original Message"
+  },
   "share": {
     "title": "Share Mailbox",
     "description": "Create a share link to let others view emails in this mailbox",
